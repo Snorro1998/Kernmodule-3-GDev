@@ -1,2 +1,2 @@
-# Kernmodule-3-GDev
-Assignment for HKU
+# RoboCodeAI
+AI for robocode by using a behaviour tree
