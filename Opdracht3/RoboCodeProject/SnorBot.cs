@@ -14,12 +14,6 @@ namespace RoboCodeProject
     public class SnorBot : AdvancedRobot
     {
         double maxEnergy;
-
-        int count = 0;
-        double gunTurnAmt;
-        String trackName;
-
-        bool movingForward;
         bool trackStealthy;
 
         // inverse kans dat hij stealthy wordt. dus 1.0 - p = 0.6 in dit geval
@@ -28,71 +22,14 @@ namespace RoboCodeProject
         static readonly double thresAggr = 0.66;
         static readonly double thresNormal = 0.33;
 
-        /// <summary>
-        /// Zoek naar een doelwit en rij erachteraan
-        /// </summary>
-        void track()
-        {
-            IsAdjustGunForRobotTurn = true;
-            TurnGunRight(gunTurnAmt);
-            count++;
+        public BTNode BhvTrack;
+        public BTNode BhvCircleMove;
+        public BTNode BhvDrunkMove;
+        public BTNode BhvStationary;
+        public BTNode BhvReverse;
+        public BTNode BhvVictoryDance;
 
-            if (count > 2)
-            {
-                gunTurnAmt = -10;
-            }
-            
-            // Kijk de andere kant op als hij niets heeft kunnen vinden
-            if (count > 5)
-            {
-                gunTurnAmt = 10;
-            }
-            
-            // Geef het op als het nog niet gelukt is
-            if (count > 11)
-            {
-                trackName = null;
-            }
-        }
-
-        /// <summary>
-        /// Beweegt in een vreemd patroon om kogels zoveel mogelijk te ontwijken
-        /// </summary>
-        void crazy()
-        {
-            IsAdjustGunForRobotTurn = false;
-            // Rij voor lange tijd vooruit
-            SetAhead(40000);
-            movingForward = true;
-            SetTurnRight(90);
-            // Wacht tot hij klaar is met draaien
-            WaitFor(new TurnCompleteCondition(this));
-            // Draai de andere kant op
-            SetTurnLeft(180);
-            // Wacht weer tot hij klaar is met draaien
-            WaitFor(new TurnCompleteCondition(this));
-            SetTurnRight(180);
-            WaitFor(new TurnCompleteCondition(this));
-        }
-
-        /// <summary>
-        /// Zoek nauwkeurig naar een doelwit
-        /// </summary>
-        void stealthy()
-        {
-            TurnGunRight(8);
-        }
-
-        /// <summary>
-        /// Rij rond in een cirkelpatroon en schiet wanneer hij iemand ziet
-        /// </summary>
-        void spin()
-        {
-            IsAdjustGunForRobotTurn = false;
-            SetTurnRight(10000);
-            MaxVelocity = 5;
-            Ahead(10000);
-        }
+        public BlackBoard blackBoard;
 
         /// <summary>
         /// Hoofdprogramma van de robot. Kiest tussen drie verschillende patronen afhankelijk van resterende energie:
@@ -105,28 +42,53 @@ namespace RoboCodeProject
         /// </summary>
         public override void Run()
         {
+            Random rand = new Random();
+            blackBoard = new BlackBoard(this);
+
             maxEnergy = Energy;
-
-            // Prepare gun
-            trackName = null;
             IsAdjustGunForRobotTurn = true;
-            gunTurnAmt = 10;
-
+            blackBoard.gunTurnAmt = 10;
             int behavior = -1, old_behavior;
 
-            Random rand = new Random();
+            BhvTrack = new Sequence(blackBoard,
+                new ChangeColor(blackBoard, Color.Green),
+                new TrackRobot(blackBoard)
+            );
+
+            BhvCircleMove = new Sequence(blackBoard,
+                new ChangeColor(blackBoard, Color.Red),
+                new CircleMove(blackBoard)
+            );
+
+            BhvDrunkMove = new Sequence(blackBoard,
+                new ChangeColor(blackBoard, Color.Blue),
+                new DrunkMove(blackBoard)
+            );
+
+            BhvStationary = new Sequence(blackBoard,
+                new ChangeColor(blackBoard, Color.Yellow),
+                new Stationary(blackBoard)
+            );
+
+            BhvReverse = new Sequence(blackBoard,
+                new ChangeColor(blackBoard, Color.Purple),
+                new DriveReverse(blackBoard)
+            );
+
+            BhvVictoryDance = new Sequence(blackBoard,
+                new Dance(blackBoard)
+            );
 
             // Robot hoofdloop
             while (true)
             {
-                double e = Energy;
                 // het oude gedrag
                 old_behavior = behavior;
 
                 // pas schaalfactor aan voor het bepalen van het gedrag
-                if (e > maxEnergy)
+                if (Energy > maxEnergy)
                 {
-                    maxEnergy = e;
+                    maxEnergy = Energy;
                 }
 
                 else
@@ -136,17 +98,16 @@ namespace RoboCodeProject
                     if (maxEnergy < 80)
                     {
                         maxEnergy = 80;
-                    }
-                        
+                    }       
                 }
 
                 // kies gedrag: aggresief tracker als >66%, crazy als >33% en anders spinbot
-                if (e > maxEnergy * thresAggr)
+                if (Energy > maxEnergy * thresAggr)
                 {
                     behavior = 0;
                 }
 
-                else if (e > maxEnergy * thresNormal)
+                else if (Energy > maxEnergy * thresNormal)
                 {
                     behavior = 1;
                     // kiest of hij langzaam gaat zoeken of willekeurig gaat bewegen
@@ -174,30 +135,26 @@ namespace RoboCodeProject
                 switch (behavior)
                 {
                     case 0:
-                        SetAllColors(Color.Green);
-                        track();
+                        BhvTrack.Tick();
                         break;
                     case 1:
                         // Gedrag is willekeurig
                         if (trackStealthy)
                         {
-                            SetAllColors(Color.Yellow);
-                            stealthy();
+                            BhvStationary.Tick();
                         }
+
                         else
                         {
-                            SetAllColors(Color.Blue);
-                            crazy();
+                            BhvDrunkMove.Tick();
                         }
                         break;
                     default:
-                        SetAllColors(Color.Red);
-                        spin();
+                        BhvCircleMove.Tick();
                         break;
                 }
             }
         }
-
 
         /// <summary>
         /// Zoek nauwkeurig en schiet als dat kan
@@ -265,17 +222,17 @@ namespace RoboCodeProject
             // Rij richting doelwit als hij er te ver vandaan is
             if (e.Distance > 150)
             {
-                gunTurnAmt = Utils.NormalRelativeAngleDegrees(e.Bearing + (Heading - RadarHeading));
+                blackBoard.gunTurnAmt = Utils.NormalRelativeAngleDegrees(e.Bearing + (Heading - RadarHeading));
 
-                SetTurnGunRight(gunTurnAmt);
+                SetTurnGunRight(blackBoard.gunTurnAmt);
                 TurnRight(e.Bearing);
                 Ahead(e.Distance - 140);
                 return;
             }
 
             // Doelwit is dichtbij
-            gunTurnAmt = Utils.NormalRelativeAngleDegrees(e.Bearing + (Heading - RadarHeading));
-            TurnGunRight(gunTurnAmt);
+            blackBoard.gunTurnAmt = Utils.NormalRelativeAngleDegrees(e.Bearing + (Heading - RadarHeading));
+            TurnGunRight(blackBoard.gunTurnAmt);
             Fire(3);
 
             // Rij terug als hij te dichtbij is
@@ -297,19 +254,19 @@ namespace RoboCodeProject
             // Wacht voor een doelwit
             Out.WriteLine("Snorbot: scan");
 
-            if (trackName != null && e.Name != trackName)
+            if (blackBoard.trackName != null && e.Name != blackBoard.trackName)
             {
                 return;
             }
 
             // Stel doelwit bij
-            if (trackName == null)
+            if (blackBoard.trackName == null)
             {
-                trackName = e.Name;
-                Out.WriteLine("Snorbot: Start tracking " + trackName);
+                blackBoard.trackName = e.Name;
+                Out.WriteLine("Snorbot: Start tracking " + blackBoard.trackName);
             }
-            count = 0;
 
+            blackBoard.count = 0;
             StayCloseToTarget(e);
 
             Scan();
@@ -334,30 +291,26 @@ namespace RoboCodeProject
             }
             else
             {
-                if (trackName != null && trackName != e.Name)
+                if (blackBoard.trackName != null && blackBoard.trackName != e.Name)
                 {
                     Out.WriteLine("Snorbot: now tracking " + e.Name + " due to collision");
                 }
 
-                trackName = e.Name;
-                gunTurnAmt = Utils.NormalRelativeAngleDegrees(e.Bearing + (Heading - RadarHeading));
-                TurnGunRight(gunTurnAmt);
+                blackBoard.trackName = e.Name;
+                blackBoard.gunTurnAmt = Utils.NormalRelativeAngleDegrees(e.Bearing + (Heading - RadarHeading));
+                TurnGunRight(blackBoard.gunTurnAmt);
                 Fire(3);
                 Back(50);
             }
         }
 
         /// <summary>
-        /// Doe een overwinningsdans als hij gewonnen heeft
+        /// Doe een overwinningsdans als hij heeft gewonnen
         /// </summary>
         /// <param name="e"></param>
         public override void OnWin(WinEvent e)
         {
-            for (int i = 0; i < 40; i++)
-            {
-                TurnRight(20);
-                TurnLeft(20);
-            }
+            BhvVictoryDance.Tick();
         }
 
         /// <summary>
@@ -365,16 +318,7 @@ namespace RoboCodeProject
         /// </summary>
         public override void OnHitWall(HitWallEvent e)
         {
-            if (movingForward)
-            {
-                SetBack(40000);
-                movingForward = false;
-            }
-            else
-            {
-                SetAhead(40000);
-                movingForward = true;
-            }
+            BhvReverse.Tick();
         }
     }
 }

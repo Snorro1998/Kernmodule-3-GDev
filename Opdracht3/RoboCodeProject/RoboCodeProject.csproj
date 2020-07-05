@@ -51,20 +51,16 @@
     <Compile Include="BlackBoard.cs" />
     <Compile Include="BTNode.cs" />
     <Compile Include="SnorBot.cs" />
-    <Compile Include="Tasks\CheckWalls.cs" />
-    <Compile Include="Tasks\Circle.cs" />
-    <Compile Include="Tasks\Kamikaze.cs" />
-    <Compile Include="Tasks\LookAtPosition.cs" />
-    <Compile Include="Tasks\MoveAhead.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Composites\Selector.cs" />
     <Compile Include="Composites\Sequence.cs" />
-    <Compile Include="Tasks\Rotator.cs" />
-    <Compile Include="Tasks\SearchRobots.cs" />
-    <Compile Include="Tasks\Fire.cs" />
-    <Compile Include="Tasks\TrunGunTowardsScannedTank.cs" />
-    <Compile Include="Tasks\TurnToTarget.cs" />
-    <Compile Include="Tasks\UpdateColour.cs" />
+    <Compile Include="Tasks\ChangeColor.cs" />
+    <Compile Include="Tasks\CircleMove.cs" />
+    <Compile Include="Tasks\Dance.cs" />
+    <Compile Include="Tasks\DriveReverse.cs" />
+    <Compile Include="Tasks\DrunkMove.cs" />
+    <Compile Include="Tasks\Stationary.cs" />
+    <Compile Include="Tasks\TrackRobot.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

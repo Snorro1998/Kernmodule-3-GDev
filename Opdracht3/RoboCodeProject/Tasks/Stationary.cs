@@ -6,18 +6,19 @@ using System.Threading.Tasks;
 
 namespace RoboCodeProject
 {
-    class Fire : BTNode
+    /// <summary>
+    /// Staat stil en draait om zich heen
+    /// </summary>
+    class Stationary : BTNode
     {
-        int force;
-
-        public Fire(BlackBoard _blackBoard, int _force)
+        public Stationary(BlackBoard _blackboard)
         {
-            blackBoard = _blackBoard;
-            force = _force;
+            blackBoard = _blackboard;
         }
+
         public override BTNodeStatus Tick()
         {
-            blackBoard.robot.Fire(force);
+            blackBoard.robot.TurnGunRight(8);
             return BTNodeStatus.succes;
         }
     }
