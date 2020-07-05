@@ -16,16 +16,16 @@ namespace RoboCodeProject
         double maxEnergy;
         bool trackStealthy;
 
-        // inverse kans dat hij stealthy wordt. dus 1.0 - p = 0.6 in dit geval
-        static readonly double thresStealthy = 0.4;
+        // kans dat hij stealthy wordt
+        static readonly double chanceStealthy = 0.5;
 
-        static readonly double thresAggr = 0.66;
+        static readonly double thresAgressive = 0.66;
         static readonly double thresNormal = 0.33;
 
-        public BTNode BhvTrack;
-        public BTNode BhvCircleMove;
-        public BTNode BhvDrunkMove;
-        public BTNode BhvStationary;
+        public BTNode BhvAgressive;
+        public BTNode BhvCautious;
+        public BTNode BhvNormal;
+        public BTNode BhvNormalAlt;
         public BTNode BhvReverse;
         public BTNode BhvVictoryDance;
 
@@ -48,24 +48,24 @@ namespace RoboCodeProject
             maxEnergy = Energy;
             IsAdjustGunForRobotTurn = true;
             blackBoard.gunTurnAmt = 10;
-            int behavior = -1, old_behavior;
+            int behaviour = -1, oldBehaviour;
 
-            BhvTrack = new Sequence(blackBoard,
+            BhvAgressive = new Sequence(blackBoard,
                 new ChangeColor(blackBoard, Color.Green),
                 new TrackRobot(blackBoard)
             );
 
-            BhvCircleMove = new Sequence(blackBoard,
+            BhvCautious = new Sequence(blackBoard,
                 new ChangeColor(blackBoard, Color.Red),
                 new CircleMove(blackBoard)
             );
 
-            BhvDrunkMove = new Sequence(blackBoard,
+            BhvNormal = new Sequence(blackBoard,
                 new ChangeColor(blackBoard, Color.Blue),
                 new DrunkMove(blackBoard)
             );
 
-            BhvStationary = new Sequence(blackBoard,
+            BhvNormalAlt = new Sequence(blackBoard,
                 new ChangeColor(blackBoard, Color.Yellow),
                 new Stationary(blackBoard)
             );
@@ -83,7 +83,7 @@ namespace RoboCodeProject
             while (true)
             {
                 // het oude gedrag
-                old_behavior = behavior;
+                oldBehaviour = behaviour;
 
                 // pas schaalfactor aan voor het bepalen van het gedrag
                 if (Energy > maxEnergy)
@@ -101,29 +101,29 @@ namespace RoboCodeProject
                     }       
                 }
 
-                // kies gedrag: aggresief tracker als >66%, crazy als >33% en anders spinbot
-                if (Energy > maxEnergy * thresAggr)
+                // kies gedrag: aggresief als >66%, normaal als >33% en anders spinbot
+                if (Energy > maxEnergy * thresAgressive)
                 {
-                    behavior = 0;
+                    behaviour = 0;
                 }
 
                 else if (Energy > maxEnergy * thresNormal)
                 {
-                    behavior = 1;
+                    behaviour = 1;
                     // kiest of hij langzaam gaat zoeken of willekeurig gaat bewegen
-                    trackStealthy = rand.NextDouble() >= thresStealthy;
+                    trackStealthy = rand.NextDouble() >= chanceStealthy;
                 }
 
                 else
                 {
-                    behavior = 2;
+                    behaviour = 2;
                 }
 
                 // als we een nieuw gedrag hebben
-                if (old_behavior != behavior)
+                if (oldBehaviour != behaviour)
                 {
                     // stop oude stappen als we die nog in de wachtrij hebben
-                    if (old_behavior != -1)
+                    if (oldBehaviour != -1)
                     {
                         // Tweemalig om alles te resetten
                         Stop(true);
@@ -132,25 +132,26 @@ namespace RoboCodeProject
                 }
 
                 // Voer gedrag uit
-                switch (behavior)
+                switch (behaviour)
                 {
                     case 0:
-                        BhvTrack.Tick();
+                        BhvAgressive.Tick();
                         break;
                     case 1:
                         // Gedrag is willekeurig
                         if (trackStealthy)
                         {
-                            BhvStationary.Tick();
+                            BhvNormalAlt.Tick();
                         }
 
                         else
                         {
-                            BhvDrunkMove.Tick();
+                            BhvNormal.Tick();
                         }
+
                         break;
                     default:
-                        BhvCircleMove.Tick();
+                        BhvCautious.Tick();
                         break;
                 }
             }
@@ -160,7 +161,7 @@ namespace RoboCodeProject
         /// Zoek nauwkeurig en schiet als dat kan
         /// </summary>
         /// <param name="e"></param>
-        void scan_stealthy(ScannedRobotEvent e)
+        void ScanStealthy(ScannedRobotEvent e)
         {
             // Bepaal de positie van de gespotte robot
             double absoluteBearing = Heading + e.Bearing;
@@ -196,14 +197,14 @@ namespace RoboCodeProject
         public override void OnScannedRobot(ScannedRobotEvent e)
         {
             // Achtervolgt robot als deze agressief is
-            if (Energy > maxEnergy * thresAggr)
+            if (Energy > maxEnergy * thresAgressive)
             {
                 scanTrack(e);
             }
                 
             else if (trackStealthy)
             {
-                scan_stealthy(e);
+                ScanStealthy(e);
             }
                 
             else
@@ -278,17 +279,19 @@ namespace RoboCodeProject
         public override void OnHitRobot(HitRobotEvent e)
         {
             // Schiet terug of draai als we niet agressief zijn
-            if (Energy <= maxEnergy * thresAggr)
+            if (Energy <= maxEnergy * thresAgressive)
             {
                 if (e.Bearing > -10 && e.Bearing < 10)
                 {
                     Fire(Energy > maxEnergy * 0.33 ? 2 : 1);
                 }
+
                 if (e.IsMyFault)
                 {
                     TurnRight(10);
                 }
             }
+
             else
             {
                 if (blackBoard.trackName != null && blackBoard.trackName != e.Name)
